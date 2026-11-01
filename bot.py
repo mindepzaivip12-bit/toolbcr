@@ -69,7 +69,7 @@ def build_main_menu():
         [InlineKeyboardButton("📊 Dự đoán",    callback_data="menu_predict")],
         [InlineKeyboardButton("💎 Bảng giá",   callback_data="menu_price")],
         [InlineKeyboardButton("🔑 Đổi key",    callback_data="menu_changkey")],
-        [InlineKeyboardButton("ℹ️ Hướng dẫn",  callback_data="menu_help")],
+        [InlineKeyboardButton(" Hướng dẫn",  callback_data="menu_help")],
     ])
 
 
@@ -91,8 +91,8 @@ def build_tables_menu(tables):
     if row:
         kb.append(row)
     kb.append([
-        InlineKeyboardButton("🔄 Làm mới", callback_data="menu_predict"),
-        InlineKeyboardButton("⬅️ Menu",    callback_data="menu_main"),
+        InlineKeyboardButton(" Làm mới", callback_data="menu_predict"),
+        InlineKeyboardButton(" Menu",    callback_data="menu_main"),
     ])
     return InlineKeyboardMarkup(kb)
 
@@ -101,7 +101,7 @@ def build_prediction_kb(table_id):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔄 Cập nhật",      callback_data=f"tbl_{table_id}")],
         [InlineKeyboardButton("🎯 Chọn sàn khác", callback_data="menu_predict")],
-        [InlineKeyboardButton("⬅️ Menu",           callback_data="menu_main")],
+        [InlineKeyboardButton("   Menu",           callback_data="menu_main")],
     ])
 
 
@@ -129,7 +129,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "━━━━━━━━━━━━━━━━━━\n"
         "Bạn cần nhập key để sử dụng bot.\n\n"
         f"{PRICE_TABLE}\n\n"
-        " NHẬP KEY KIỂU NÀY:\n"
+        " CÁCH SÀI KEY:\n"
         "<code>/key bcr-1h-1735689600-a1b2c3d4e5f6</code>\n\n"
         " Hỗ trợ: <b>@cskhleminh</b>",
         parse_mode="HTML",
@@ -331,7 +331,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.edit_message_text(f"⚠️ Sàn #{tid} chưa có dữ liệu.")
             return
 
-        pred_icon = "🔵" if pred["pred"] == "T" else "🔴"
+        pred_icon = "🔴" if pred["pred"] == "T" else "🔵"
 
         # ============ ACCURACY (BACKTEST %) ============
         acc = pred.get("accuracy")
@@ -342,12 +342,12 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # ============ FORMAT GỌN — ẨN THUẬT TOÁN ============
         text = (
-            f"🎰 <b>Sàn #{tid}</b> · Baccarat\n"
+            f"🐼 <b>Sàn #{tid}</b> · Baccarat\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"📌 <b>Phiên #{pred['current_session']}</b> → Kết quả: <b>{pred['latest_label']}</b>\n"
-            f"🎯 <b>Phiên #{pred['next_session']}</b> → Dự đoán: {pred_icon} <b>{pred['pred_label']}</b>\n"
+            f"🎲 <b>Phiên #{pred['current_session']}</b> → Kết quả: <b>{pred['latest_label']}</b>\n"
+            f"🎲 <b>Phiên #{pred['next_session']}</b> → Dự đoán: {pred_icon} <b>{pred['pred_label']}</b>\n"
             f"📊 Độ tin cậy: <b>{pred['conf']}%</b>\n"
-            f"🎓 Chính xác (backtest): <b>{acc_pct}</b>"
+            f"🎲 Chính xác : <b>{acc_pct}</b>"
         )
 
         await q.edit_message_text(
