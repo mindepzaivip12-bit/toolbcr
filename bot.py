@@ -115,7 +115,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ki = context.user_data["key_info"]
         remain = max(0, ki["expire"] - int(time.time()))
         await update.message.reply_text(
-            f"👋 CHÀO BẠN <b>{user.first_name}</b>!\n"
+            f" CHÀO BẠN <b>{user.first_name}</b>!\n"
             f"🔑 Key còn: <b>{format_remain(remain)}</b>\n"
             f"🎮 Game: <b>{ki['game']}</b>",
             reply_markup=build_main_menu(),
@@ -124,14 +124,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        f"👋 Xin chào <b>{user.first_name}</b>!\n\n"
+        f" Xin chào <b>{user.first_name}</b>!\n\n"
         "🎰 <b>Bontools Baccarat </b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Bạn cần nhập key để sử dụng bot.\n\n"
         f"{PRICE_TABLE}\n\n"
-        "📝 Nhập key theo cú pháp:\n"
+        " NHẬP KEY KIỂU NÀY:\n"
         "<code>/key bcr-1h-1735689600-a1b2c3d4e5f6</code>\n\n"
-        "🆘 Hỗ trợ: <b>@cskhleminh</b>",
+        " Hỗ trợ: <b>@cskhleminh</b>",
         parse_mode="HTML",
     )
 
