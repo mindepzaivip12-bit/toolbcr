@@ -125,7 +125,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"👋 Xin chào <b>{user.first_name}</b>!\n\n"
-        "🎰 <b>Bontools Baccarat Bot</b>\n"
+        "🎰 <b>Bontools Baccarat </b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Bạn cần nhập key để sử dụng bot.\n\n"
         f"{PRICE_TABLE}\n\n"
