@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 import httpx
@@ -16,8 +15,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 log = logging.getLogger(__name__)
-
-LIVE_INTERVAL = 10  # giây / lần refresh
 
 
 # ============================================================
@@ -101,130 +98,11 @@ def build_tables_menu(tables):
 
 
 def build_prediction_kb(table_id):
-    # ⭐ THÊM nút "Chạy Live" - các nút còn lại giữ nguyên
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔴 Chạy Live",     callback_data=f"live_on_{table_id}")],
         [InlineKeyboardButton("🔄 Cập nhật",      callback_data=f"tbl_{table_id}")],
-        [InlineKeyboardButton("🎯 Chọn sàn khác", callback_data="menu_predict"),
-         InlineKeyboardButton("   Menu",          callback_data="menu_main")],
+        [InlineKeyboardButton("🎯 Chọn sàn khác", callback_data="menu_predict")],
+        [InlineKeyboardButton("   Menu",           callback_data="menu_main")],
     ])
-
-
-def build_live_kb(table_id):
-    # Bàn phím khi đang LIVE
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⏹ Dừng Live",      callback_data=f"live_off_{table_id}")],
-        [InlineKeyboardButton("🎯 Chọn sàn khác", callback_data="menu_predict"),
-         InlineKeyboardButton("   Menu",          callback_data="menu_main")],
-    ])
-
-
-# ============================================================
-# LIVE ENGINE
-# ============================================================
-_live_tasks: dict = {}  # {chat_id: asyncio.Task}
-
-
-async def _get_prediction_text(tid: str) -> str:
-    """Fetch + predict + format — GIỐNG HỆT text gốc, dùng chung cho live & thủ công."""
-    tables, _ = await fetch_api()
-    t = next((x for x in tables if str(x["table"]) == tid), None)
-    if not t:
-        raise ValueError(f"Không tìm thấy sàn #{tid}")
-    pred = make_prediction_for_table(t.get("result", ""))
-    if not pred:
-        raise ValueError(f"Sàn #{tid} chưa có dữ liệu")
-
-    pred_icon = "🔴" if pred["pred"] == "T" else "🔵"
-    acc = pred.get("accuracy")
-    acc_pct = f"{acc * 100:.1f}%" if acc is not None else "đang cập nhật"
-
-    return (
-        f"🐼 <b>Sàn #{tid}</b> · Baccarat\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🎲 <b>Phiên #{pred['current_session']}</b> → Kết quả: <b>{pred['latest_label']}</b>\n"
-        f"🎲 <b>Phiên #{pred['next_session']}</b> → Dự đoán: {pred_icon} <b>{pred['pred_label']}</b>\n"
-        f"📊 Độ tin cậy: <b>{pred['conf']}%</b>\n"
-        f"🎲 Chính xác : <b>{acc_pct}</b>"
-    )
-
-
-async def _stop_live_async(chat_id: int):
-    entry = _live_tasks.pop(chat_id, None)
-    if not entry:
-        return
-    task = entry
-    task.cancel()
-    try:
-        await task
-    except (asyncio.CancelledError, Exception):
-        pass
-
-
-def _start_live(bot, chat_id, message_id, tid, user_id, application):
-    # Nếu đã có task cũ → cancel
-    old = _live_tasks.pop(chat_id, None)
-    if old:
-        old.cancel()
-
-    task = asyncio.create_task(
-        _live_loop(bot, chat_id, message_id, tid, user_id, application)
-    )
-    _live_tasks[chat_id] = task
-
-
-async def _live_loop(bot, chat_id, message_id, tid, user_id, application):
-    log.info(f"🔴 LIVE start chat={chat_id} sàn=#{tid}")
-    try:
-        while True:
-            # Kiểm tra key còn hạn không
-            ud = application.user_data.get(user_id) or {}
-            ki = ud.get("key_info")
-            if not ki or ki.get("expire", 0) < int(time.time()):
-                try:
-                    await bot.edit_message_text(
-                        chat_id=chat_id,
-                        message_id=message_id,
-                        text=(
-                            "❌ Key đã hết hạn.\n"
-                            "Nhập key mới: <code>/key &lt;key&gt;</code>\n\n"
-                            f"{PRICE_TABLE}"
-                        ),
-                        parse_mode="HTML",
-                    )
-                except Exception:
-                    pass
-                return
-
-            # Cập nhật tin nhắn
-            try:
-                text = await _get_prediction_text(tid)
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    text=text,
-                    reply_markup=build_live_kb(tid),
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                s = str(e).lower()
-                # text không đổi → bỏ qua, tiếp tục
-                if "not modified" in s:
-                    pass
-                # tin nhắn bị xoá / không sửa được → dừng
-                elif "not found" in s or "can't be edited" in s:
-                    log.info(f"LIVE stop (message gone) sàn #{tid}")
-                    return
-                else:
-                    log.debug(f"LIVE tick skip sàn #{tid}: {e}")
-
-            await asyncio.sleep(LIVE_INTERVAL)
-    except asyncio.CancelledError:
-        pass
-    except Exception:
-        log.exception(f"LIVE loop crash sàn #{tid}")
-    finally:
-        log.info(f"⏹ LIVE end chat={chat_id} sàn=#{tid}")
 
 
 # ============================================================
@@ -232,7 +110,6 @@ async def _live_loop(bot, chat_id, message_id, tid, user_id, application):
 # ============================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    await _stop_live_async(update.effective_chat.id)   # dừng live nếu có
 
     if context.user_data.get("key_info"):
         ki = context.user_data["key_info"]
@@ -260,7 +137,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def key_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await _stop_live_async(update.effective_chat.id)   # dừng live nếu có
     args = context.args
     if not args:
         await update.message.reply_text(
@@ -298,8 +174,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         " 1 <b>Hướng dẫn</b>\n\n"
         " 2 /start — Bắt đầu\n"
         " 3 /key &lt;key&gt; — Nhập key\n"
-        " 4 Chọn game → Chọn sàn → Xem dự đoán\n"
-        " 5 Bấm 🔴 Chạy Live để tự cập nhật liên tục\n\n"
+        " 4 Chọn game → Chọn sàn → Xem dự đoán\n\n"
         "📊 <b>Bot dự đoán:</b>\n"
         "• Cái/Con cho phiên tiếp theo\n"
         "• Độ tin cậy %\n"
@@ -316,9 +191,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     data = q.data
-
-    # ⭐ Dừng mọi phiên LIVE đang chạy của chat này trước khi xử lý callback mới
-    await _stop_live_async(q.message.chat_id)
 
     # Chưa có key → chỉ cho quay về menu chính hoặc xem bảng giá
     if not context.user_data.get("key_info") and data not in ("menu_main", "menu_price"):
@@ -374,8 +246,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. Chọn game\n"
             "2. Chọn sàn\n"
             "3. Xem dự đoán\n"
-            "4. Bấm 🔄 Cập nhật để refresh tay\n"
-            "5. Bấm 🔴 Chạy Live để tự cập nhật liên tục",
+            "4. Cập nhật để refresh",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("⬅️ Menu", callback_data="menu_main"),
             ]]),
@@ -433,45 +304,52 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ---------- DỰ ĐOÁN 1 SÀN (thủ công) ----------
+    # ---------- DỰ ĐOÁN 1 SÀN ----------
     if data.startswith("tbl_"):
         tid = data[4:]
         await q.edit_message_text(f"⏳ Đang phân tích sàn #{tid}...")
+
         try:
-            text = await _get_prediction_text(tid)
+            tables, _ = await fetch_api()
+        except Exception as e:
+            await q.edit_message_text(f"❌ Lỗi API: {e}")
+            return
+
+        t = next((x for x in tables if str(x["table"]) == tid), None)
+        if not t:
+            await q.edit_message_text(f"❌ Không tìm thấy sàn #{tid}")
+            return
+
+        try:
+            pred = make_prediction_for_table(t.get("result", ""))
         except Exception as e:
             log.exception("predict error")
-            await q.edit_message_text(f"❌ {e}")
+            await q.edit_message_text(f"❌ Lỗi phân tích: {e}")
             return
-        await q.edit_message_text(
-            text,
-            reply_markup=build_prediction_kb(tid),
-            parse_mode="HTML",
-        )
-        return
 
-    # ---------- BẬT LIVE ----------
-    if data.startswith("live_on_"):
-        tid = data[len("live_on_"):]
-        _start_live(
-            context.bot,
-            q.message.chat_id,
-            q.message.message_id,
-            tid,
-            q.from_user.id,
-            context.application,
-        )
-        return
-
-    # ---------- TẮT LIVE (quay về khung dự đoán thủ công) ----------
-    if data.startswith("live_off_"):
-        tid = data[len("live_off_"):]
-        # Live đã được stop ở đầu hàm
-        try:
-            text = await _get_prediction_text(tid)
-        except Exception as e:
-            await q.edit_message_text(f"❌ {e}")
+        if not pred:
+            await q.edit_message_text(f"⚠️ Sàn #{tid} chưa có dữ liệu.")
             return
+
+        pred_icon = "🔴" if pred["pred"] == "T" else "🔵"
+
+        # ============ ACCURACY (BACKTEST %) ============
+        acc = pred.get("accuracy")
+        if acc is not None:
+            acc_pct = f"{acc * 100:.1f}%"
+        else:
+            acc_pct = "đang cập nhật"
+
+        # ============ FORMAT GỌN — ẨN THUẬT TOÁN ============
+        text = (
+            f"🐼 <b>Sàn #{tid}</b> · Baccarat\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🎲 <b>Phiên #{pred['current_session']}</b> → Kết quả: <b>{pred['latest_label']}</b>\n"
+            f"🎲 <b>Phiên #{pred['next_session']}</b> → Dự đoán: {pred_icon} <b>{pred['pred_label']}</b>\n"
+            f"📊 Độ tin cậy: <b>{pred['conf']}%</b>\n"
+            f"🎲 Chính xác : <b>{acc_pct}</b>"
+        )
+
         await q.edit_message_text(
             text,
             reply_markup=build_prediction_kb(tid),
