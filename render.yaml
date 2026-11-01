@@ -1,0 +1,14 @@
+services:
+  - type: worker
+    name: bontools-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: 8748135141:AAEpu-agcgKG79OMrr-3E-VYw7hNaQCKm4s
+      - key: KEY_SECRET
+        value: bontools_bcr_secret_2024_CHANGE_ME
+      - key: PYTHON_VERSION
+        value: 3.11.9
