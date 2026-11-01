@@ -18,6 +18,20 @@ log = logging.getLogger(__name__)
 
 
 # ============================================================
+# BẢNG GIÁ
+# ============================================================
+PRICE_TABLE = (
+    "💎 <b>BẢNG GIÁ KEY</b>\n"
+    "━━━━━━━━━━━━━━━━━━\n"
+    "⏱ 1 giờ  →  <b>15.000đ</b>\n"
+    "📅 1 ngày →  <b>25.000đ</b>\n"
+    "📅 3 ngày →  <b>45.000đ</b>\n"
+    "━━━━━━━━━━━━━━━━━━\n"
+    "💳 Mua key IB: <b>@cskhleminh</b>"
+)
+
+
+# ============================================================
 # HTTP FETCH API
 # ============================================================
 async def fetch_api():
@@ -53,6 +67,7 @@ def build_main_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎮 Chọn game",  callback_data="menu_game")],
         [InlineKeyboardButton("📊 Dự đoán",    callback_data="menu_predict")],
+        [InlineKeyboardButton("💎 Bảng giá",   callback_data="menu_price")],
         [InlineKeyboardButton("🔑 Đổi key",    callback_data="menu_changkey")],
         [InlineKeyboardButton("ℹ️ Hướng dẫn",  callback_data="menu_help")],
     ])
@@ -84,9 +99,9 @@ def build_tables_menu(tables):
 
 def build_prediction_kb(table_id):
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 Cập nhật",     callback_data=f"tbl_{table_id}")],
+        [InlineKeyboardButton("🔄 Cập nhật",      callback_data=f"tbl_{table_id}")],
         [InlineKeyboardButton("🎯 Chọn sàn khác", callback_data="menu_predict")],
-        [InlineKeyboardButton("⬅️ Menu",          callback_data="menu_main")],
+        [InlineKeyboardButton("⬅️ Menu",           callback_data="menu_main")],
     ])
 
 
@@ -100,7 +115,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ki = context.user_data["key_info"]
         remain = max(0, ki["expire"] - int(time.time()))
         await update.message.reply_text(
-            f"CHÀO BẠN <b>{user.first_name}</b>!\n"
+            f"👋 CHÀO BẠN <b>{user.first_name}</b>!\n"
             f"🔑 Key còn: <b>{format_remain(remain)}</b>\n"
             f"🎮 Game: <b>{ki['game']}</b>",
             reply_markup=build_main_menu(),
@@ -109,13 +124,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        f" Xin chào <b>{user.first_name}</b>!\n\n"
-        " <b>Bontools Baccarat </b>\n"
+        f"👋 Xin chào <b>{user.first_name}</b>!\n\n"
+        "🎰 <b>Bontools Baccarat Bot</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Bạn cần nhập key để sử dụng bot.\n\n"
-        "MUA KEY IB @cskhleminh:\n"
+        f"{PRICE_TABLE}\n\n"
+        "📝 Nhập key theo cú pháp:\n"
         "<code>/key bcr-1h-1735689600-a1b2c3d4e5f6</code>\n\n"
-        "HỖ TRỢ LIEN HE @cskhleminh",
+        "🆘 Hỗ trợ: <b>@cskhleminh</b>",
         parse_mode="HTML",
     )
 
@@ -125,7 +141,8 @@ async def key_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args:
         await update.message.reply_text(
             "❌ Thiếu key.\n"
-            "VD: <code>/key bcr-1h-1735689600-a1b2c3d4e5f6</code>",
+            "VD: <code>/key bcr-1h-1735689600-a1b2c3d4e5f6</code>\n\n"
+            f"{PRICE_TABLE}",
             parse_mode="HTML",
         )
         return
@@ -133,7 +150,10 @@ async def key_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     key = args[0].strip()
     ok, msg, info = validate_key(key)
     if not ok:
-        await update.message.reply_text(msg)
+        await update.message.reply_text(
+            f"{msg}\n\n{PRICE_TABLE}",
+            parse_mode="HTML",
+        )
         return
 
     context.user_data["key"] = key
@@ -151,15 +171,15 @@ async def key_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "<b>Hướng dẫn</b>\n\n"
-        "1️ /start — Bắt đầu\n"
-        "2️ /key &lt;key&gt; — Nhập key\n"
-        "3️ Chọn game → Chọn sàn → Xem dự đoán\n\n"
+        " 1 <b>Hướng dẫn</b>\n\n"
+        " 2 /start — Bắt đầu\n"
+        " 3 /key &lt;key&gt; — Nhập key\n"
+        " 4 Chọn game → Chọn sàn → Xem dự đoán\n\n"
         "📊 <b>Bot dự đoán:</b>\n"
         "• Cái/Con cho phiên tiếp theo\n"
         "• Độ tin cậy %\n"
-        "• Kết quả phiên vừa xong\n\n"
-        "🎯 ~ toán  e + bac.",
+        "• Độ chính xác \n\n"
+        f"{PRICE_TABLE}",
         parse_mode="HTML",
     )
 
@@ -172,10 +192,11 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     data = q.data
 
-    # Chưa có key → chỉ cho quay về menu chính
-    if not context.user_data.get("key_info") and data != "menu_main":
+    # Chưa có key → chỉ cho quay về menu chính hoặc xem bảng giá
+    if not context.user_data.get("key_info") and data not in ("menu_main", "menu_price"):
         await q.edit_message_text(
-            "🔑 Bạn cần nhập key trước:\n<code>/key &lt;key&gt;</code>",
+            "🔑 Bạn cần nhập key trước:\n<code>/key &lt;key&gt;</code>\n\n"
+            f"{PRICE_TABLE}",
             parse_mode="HTML",
         )
         return
@@ -183,14 +204,27 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ki = context.user_data.get("key_info")
 
     # Kiểm tra hạn key mỗi lần dùng
-    if ki and data != "menu_changkey":
+    if ki and data not in ("menu_changkey", "menu_price"):
         if ki["expire"] < int(time.time()):
             context.user_data.clear()
             await q.edit_message_text(
-                "❌ Key đã hết hạn.\nNhập key mới: <code>/key &lt;key&gt;</code>",
+                "❌ Key đã hết hạn.\nNhập key mới: <code>/key &lt;key&gt;</code>\n\n"
+                f"{PRICE_TABLE}",
                 parse_mode="HTML",
             )
             return
+
+    # ---------- BẢNG GIÁ ----------
+    if data == "menu_price":
+        kb_rows = []
+        if ki:
+            kb_rows.append([InlineKeyboardButton("⬅️ Menu", callback_data="menu_main")])
+        await q.edit_message_text(
+            PRICE_TABLE + "\n\n📩 Nhắn <b>@cskhleminh</b> để mua key ngay!",
+            reply_markup=InlineKeyboardMarkup(kb_rows) if kb_rows else None,
+            parse_mode="HTML",
+        )
+        return
 
     # ---------- MENU CHÍNH ----------
     if data == "menu_main":
@@ -212,7 +246,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. Chọn game\n"
             "2. Chọn sàn\n"
             "3. Xem dự đoán\n"
-            "4. Cập nhật",
+            "4. Cập nhật để refresh",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("⬅️ Menu", callback_data="menu_main"),
             ]]),
@@ -223,7 +257,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------- ĐỔI KEY ----------
     if data == "menu_changkey":
         await q.edit_message_text(
-            "🔑 Nhập key :\n<code>/key bcr-1h-...</code>",
+            "🔑 Nhập key mới:\n<code>/key bcr-1h-...</code>",
             parse_mode="HTML",
         )
         return
@@ -241,10 +275,10 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["game"] = "bcr"
         await q.edit_message_text(
             "🐼 Đã chọn <b>Baccarat</b>\n\n"
-            "Bấm 📊 Dự đoán sàn.",
+            "Bấm 📊 Dự đoán để tải danh sách sàn.",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("📊 Dự đoán", callback_data="menu_predict")],
-                [InlineKeyboardButton(" Menu",    callback_data="menu_main")],
+                [InlineKeyboardButton("⬅️ Menu",    callback_data="menu_main")],
             ]),
             parse_mode="HTML",
         )
@@ -299,13 +333,21 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         pred_icon = "🔵" if pred["pred"] == "T" else "🔴"
 
-        # ═══════════ FORMAT GỌN ═══════════
+        # ============ ACCURACY (BACKTEST %) ============
+        acc = pred.get("accuracy")
+        if acc is not None:
+            acc_pct = f"{acc * 100:.1f}%"
+        else:
+            acc_pct = "đang cập nhật"
+
+        # ============ FORMAT GỌN — ẨN THUẬT TOÁN ============
         text = (
             f"🎰 <b>Sàn #{tid}</b> · Baccarat\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"📌 <b>Phiên #{pred['current_session']}</b> → Kết quả: <b>{pred['latest_label']}</b>\n"
             f"🎯 <b>Phiên #{pred['next_session']}</b> → Dự đoán: {pred_icon} <b>{pred['pred_label']}</b>\n"
-            f"📊 Độ tin cậy: <b>{pred['conf']}%</b>"
+            f"📊 Độ tin cậy: <b>{pred['conf']}%</b>\n"
+            f"🎓 Chính xác (backtest): <b>{acc_pct}</b>"
         )
 
         await q.edit_message_text(
